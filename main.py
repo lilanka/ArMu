@@ -18,9 +18,10 @@ BATCH_SIZE = 100
 MEAN = 0.0
 STD = (0.2, 0.2) # std and std_bar
 TAU = 1
-C = (-1, 1) # -c, c
+C = (-0.5, 0.5) # -c, c
+lr = 1e-3
 
-td3 = Controller(OBS_DIM, ACT_DIM, BUFFER_SIZE, BATCH_SIZE, MEAN, STD, TAU, C)
+td3 = Controller(OBS_DIM, ACT_DIM, BUFFER_SIZE, BATCH_SIZE, MEAN, STD, TAU, C, lr)
 
 for _ in range(EPISODES):
   env.render()

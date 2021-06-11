@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from torch import optim
 
 from utils.networks import Actor, Critic
 from utils.memory import Memory
@@ -8,15 +9,15 @@ from utils.utils import *
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Controller:
-  def __init__(self, OBS_DIM, ACT_DIM, MEMORY_SIZE, BATCH_SIZE, mean, _std, tau, c):
+  def __init__(self, OBS_DIM, ACT_DIM, MEMORY_SIZE, BATCH_SIZE, mean, _std, tau, c, lr):
     
     self.act_dim = ACT_DIM
     self.mean = mean
     self.std = _std[0]
-    self.std_bar = _std[1]
+    self.std_bar = _std[1]      # ~σ
     self.batch_size= BATCH_SIZE 
-    self.tau = tau
-    self.c = c 
+    self.tau = tau              
+    self.c = c                  # clip min, max values 
 
     # initialize critic networks and actor networks
     self.actor = Actor(OBS_DIM, ACT_DIM)
@@ -32,7 +33,11 @@ class Controller:
     deepcopy(self.actor.parameters(), self.t_actor.parameters())
     deepcopy(self.critic1.parameters(), self.critic1.parameters())
     deepcopy(self.critic2.parameters(), self.critic2.parameters())
-   
+  
+    # optimizers
+    self.actor_optim = optim.Adam(self.actor.parameters(), lr=lr)
+    self.critic_optim = optim.Adam(list(self.critic1.parameters()) + list(self.critic2.parameters()), lr=lr)
+
     # initialize replay buffer
     self.buffer = Memory(MEMORY_SIZE, BATCH_SIZE)
 
@@ -52,14 +57,22 @@ class Controller:
       return
 
     mini_batch = self.buffer.pull(device)
-    
+   
     for i in range(len(mini_batch[0])):
-      action = self.t_actor.forward(mini_batch[3][i])
       # ~a←πφ′(s′) + ∼clip(N(0,~σ),−c,c)
-      action[:] = action + torch.clamp(torch.normal(mean=self.mean, std=self.std_bar, size=action.shape), min=self.c[0], max=self.c[1])
+      action = self.t_actor.forward(mini_batch[3][i]) + torch.clamp(torch.normal(mean=self.mean, std=self.std_bar, size=self.t_actor.out.bias.shape), min=self.c[0], max=self.c[1])
       
-      rew1 = self.t_critic1(mini_batch[3][i], action)
-      rew2 = self.t_critic2(mini_batch[3][i], action)
-      exp_reward = min(rew1, rew2)
+      t_Q1 = self.t_critic1.forward(mini_batch[3][i], action)
+      t_Q2 = self.t_critic2.forward(mini_batch[3][i], action)
+
+      exp_reward = torch.min(t_Q1, t_Q2)
       target = mini_batch[2][i] + self.tau * exp_reward
-       
+
+      # update Critic functions
+      loss = (self.critic1.forward(mini_batch[0][i], mini_batch[1][i]) - target).pow(2).mean() + \
+             (self.critic2.forward(mini_batch[0][i], mini_batch[1][i]) - target).pow(2).mean()
+
+      torch.autograd.set_detect_anomaly(True) 
+      self.actor_optim.zero_grad()
+      loss.backward()
+      self.actor_optim.step()
