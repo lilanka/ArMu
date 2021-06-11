@@ -8,8 +8,13 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Controller:
-  def __init__(self, OBS_DIM, ACT_DIM, MEMORY_SIZE, BATCH_SIZE):
+  def __init__(self, OBS_DIM, ACT_DIM, MEMORY_SIZE, BATCH_SIZE, mean, std):
     
+    self.act_dim = ACT_DIM
+    self.mean = mean
+    self.std = std
+    self.batch_size= BATCH_SIZE 
+
     # initialize critic networks and actor networks
     self.actor = Actor(OBS_DIM, ACT_DIM)
     self.critic1 = Critic(OBS_DIM, ACT_DIM)
@@ -28,13 +33,16 @@ class Controller:
     # initialize replay buffer
     self.buffer = Memory(MEMORY_SIZE, BATCH_SIZE)
 
-  def forward(self, obs):
-    state = to_tensor(obs['observation'], device)
-    achieved_goal = to_tensor(obs['achieved_goal'], device)
-    desired_goal = to_tensor(obs['desired_goal'], device)
+  def step(self, obs):
+    # choose actions and take new observations
+    state = obs_concat(obs, device)
 
     action = self.actor.forward(state)
-    return action 
+    action[:] += torch.normal(mean=self.mean, std=self.std, size=action.shape)
+    return to_numpy(action)
 
-  def learn(self, samples):
-    pass
+  def forward(self, obs, action, reward, new_obs, done):
+    self.buffer.push(obs, action, reward, new_obs, done)
+
+    if len(self.buffer) > self.batch_size:
+      mini_batch = self.buffer.pull(device)

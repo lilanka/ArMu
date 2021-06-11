@@ -4,6 +4,8 @@ from collections import namedtuple, deque
 
 import torch
 
+from utils.utils import *
+
 class Memory:
   """
   Args:
@@ -16,19 +18,24 @@ class Memory:
     self.batch_size = batch_size
   
     self.memory = deque(maxlen=buffer_size)
-    self.experience = namedtuple("Experience", field_names=["state", "action", "reward", "new_state"])
+    self.experience = namedtuple("Experience", \
+        field_names=["state", "action", "reward", "new_state", "done"])
 
-  def push(self, state, action, reward, new_state):
-    sample = self.experience(state, action, reward, new_state)
+  def push(self, state, action, reward, new_state, done):
+    sample = self.experience(state, action, reward, new_state, done)
     self.memory.append(sample)
 
-  def pull(self):
+  def pull(self, device):
     samples = random.sample(self.memory, k=self.batch_size)
- 
-    for s in samples:
-      states = torch.from_numpy(s.state).float()
-      actions = torch.from_numpy(s.action).float()
-      rewards = torch.from_numpy(s.reward).float()
-      new_states = torch.from_numpy(s.new_state).float()
+    
+    
+    states = [obs_concat(s.state, device) for s in samples]
+    actions = [to_tensor(s.action, device) for s in samples]
+    rewards = [s for s in samples]
+    new_states = [obs_concat(s.new_state, device) for s in samples]
+    dones = [s for s in samples]
 
-    return (states, actions, rewards, new_states)
+    return (states, actions, rewards, new_states, dones)
+
+  def __len__(self):
+    return len(self.memory)
