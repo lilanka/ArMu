@@ -44,7 +44,7 @@ class Critic(nn.Module):
     Args: 
       shape (x, y)
     """
-    _input = torch.cat((state, action), 1)
+    _input = torch.cat((state, action), 0)
     x = self.l1(_input)
     x = F.relu(x)
     x = self.l2(x)

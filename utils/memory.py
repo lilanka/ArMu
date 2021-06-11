@@ -27,13 +27,15 @@ class Memory:
 
   def pull(self, device):
     samples = random.sample(self.memory, k=self.batch_size)
-    
-    
+   
+    # TODO : use torch.cat. it is faster
+    #            torch.stack is good. but not faster as cat
+
     states = [obs_concat(s.state, device) for s in samples]
     actions = [to_tensor(s.action, device) for s in samples]
-    rewards = [s for s in samples]
+    rewards = [torch.tensor([s.reward]) for s in samples]
     new_states = [obs_concat(s.new_state, device) for s in samples]
-    dones = [s for s in samples]
+    dones = [torch.tensor([s.done]) for s in samples]
 
     return (states, actions, rewards, new_states, dones)
 
