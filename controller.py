@@ -9,7 +9,7 @@ from utils.utils import *
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Controller:
-  def __init__(self, OBS_DIM, ACT_DIM, MEMORY_SIZE, BATCH_SIZE, mean, _std, tau, c, lr):
+  def __init__(self, OBS_DIM, ACT_DIM, MEMORY_SIZE, BATCH_SIZE, mean, _std, tau, c, lr, d):
     
     self.act_dim = ACT_DIM
     self.mean = mean
@@ -18,6 +18,7 @@ class Controller:
     self.batch_size= BATCH_SIZE 
     self.tau = tau              
     self.c = c                  # clip min, max values 
+    self.d = d
 
     # initialize critic networks and actor networks
     self.actor = Actor(OBS_DIM, ACT_DIM)
@@ -69,10 +70,43 @@ class Controller:
       target = mini_batch[2][i] + self.tau * exp_reward
 
       # update Critic functions
-      loss = (self.critic1.forward(mini_batch[0][i], mini_batch[1][i]) - target).pow(2).mean() + \
+      critic_loss = (self.critic1.forward(mini_batch[0][i], mini_batch[1][i]) - target).pow(2).mean() + \
              (self.critic2.forward(mini_batch[0][i], mini_batch[1][i]) - target).pow(2).mean()
 
-      torch.autograd.set_detect_anomaly(True) 
-      self.actor_optim.zero_grad()
-      loss.backward()
-      self.actor_optim.step()
+      self.critic_optim.zero_grad()
+      critic_loss.backward()
+      self.critic_optim.step()
+
+      if i % self.d == 0:
+        # update the policy 
+        actor_loss = -self.critic1(mini_batch[0][i], self.actor(mini_batch[0][i])).mean()
+
+        self.actor_optim.zero_grad()
+        actor_loss.backward()
+        self.actor_optim.step()
+
+        # soft-update the networks
+        softcopy(self.t_critic1.parameters(), self.critic1.parameters(), self.tau)
+        softcopy(self.t_critic2.parameters(), self.critic2.parameters(), self.tau)
+        softcopy(self.t_actor.parameters(), self.actor.parameters(), self.tau)
+
+  def save(self):
+    # save the model
+    torch.save(self.critic1.state_dict(), "modeldata/_critic1")
+    torch.save(self.critic2.state_dict(), "modeldata/_critic2")
+    torch.save(self.critic_optim.state_dict(), "modeldata/_critic_optim")
+
+    torch.save(self.actor.state_dict(), "modeldata/_actor")
+    torch.save(self.actor_optim.state_dict(), "modeldata/_actor_optim")
+
+  def load(self):
+    # load the model
+    self.critic1.load_state_dict(torch.load("modeldata/_critic1"))
+    self.critic2.load_state_dict(torch.load("modeldata/_critic2"))
+    self.critic_optim.load_state_dict(torch.load("modeldata/_critic_optim"))
+    deepcopy(self.t_critic1.parameters(), self.critic1.parameters())
+    deepcopy(self.t_critic2.parameters(), self.critic2.parameters())
+
+    self.actor.load_state_dict(torch.load("modeldata/_actor"))
+    self.actor_optim.load_state_dict(torch.load("modeldata/_actor_optim"))
+    deepcopy(self.t_actor.parameters(), self.actor.parameters())

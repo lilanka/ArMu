@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# Actor ----------------------------------------------------
+# Actor 
 class Actor(nn.Module):
   """
   Args:
@@ -25,7 +25,7 @@ class Actor(nn.Module):
     x = torch.tanh(x)
     return x
 
-# Critic ---------------------------------------------------
+# Critic
 class Critic(nn.Module):
   """
   Args:
@@ -40,10 +40,6 @@ class Critic(nn.Module):
     self.out = nn.Linear(300, 1, bias=bias)
 
   def forward(self, state, action):
-    """
-    Args: 
-      shape (x, y)
-    """
     _input = torch.cat((state, action), 0)
     x = self.l1(_input)
     x = F.relu(x)

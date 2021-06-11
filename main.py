@@ -12,7 +12,7 @@ OBS_DIM = obs['observation'].shape[0] + \
           obs['achieved_goal'].shape[0] + \
           obs['desired_goal'].shape[0]
 ACT_DIM = 4  
-EPISODES = 1000
+EPISODES = 120 
 BUFFER_SIZE = 10000
 BATCH_SIZE = 100
 MEAN = 0.0
@@ -20,8 +20,9 @@ STD = (0.2, 0.2) # std and std_bar
 TAU = 1
 C = (-0.5, 0.5) # -c, c
 lr = 1e-3
+d = 1 # to set fixed number of updates
 
-td3 = Controller(OBS_DIM, ACT_DIM, BUFFER_SIZE, BATCH_SIZE, MEAN, STD, TAU, C, lr)
+td3 = Controller(OBS_DIM, ACT_DIM, BUFFER_SIZE, BATCH_SIZE, MEAN, STD, TAU, C, lr, d)
 
 for _ in range(EPISODES):
   env.render()

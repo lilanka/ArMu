@@ -1,6 +1,4 @@
 # ArMu
-Controlling Robotic Arm with Deep Reinforcement Learning
+Controlling Robotic Arm with Deep Reinforcement Learning  
 
-TODO:
-  read the paper again
-  5h
+Written for semester 4 indvidual project in the University. 

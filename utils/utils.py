@@ -5,6 +5,10 @@ def deepcopy(target, source):
   for target_param, param in zip(target, source):
     target_param.data.copy_(param.data)
 
+def softcopy(target, source, tau):
+  for target_param, param in zip(target, source):
+    target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+
 def to_tensor(np_array, device):
   return torch.from_numpy(np_array).float().to(device)
 

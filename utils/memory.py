@@ -28,8 +28,7 @@ class Memory:
   def pull(self, device):
     samples = random.sample(self.memory, k=self.batch_size)
    
-    # TODO : use torch.cat. it is faster
-    #            torch.stack is good. but not faster as cat
+    # TODO : use torch.cat. it's faster
 
     states = [obs_concat(s.state, device) for s in samples]
     actions = [to_tensor(s.action, device) for s in samples]
